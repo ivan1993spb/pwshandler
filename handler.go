@@ -6,12 +6,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Environment is common data for connections in one pool
+type Environment interface{}
+
 // ConnPool is common interface for a structures which merge websocket
 // connections in a pools with access to common environment data such
 // as context for starting other goroutines or something else
 type ConnPool interface {
 	// AddConn creates connection to pool and returns environment data
-	AddConn(*websocket.Conn) (interface{}, error)
+	AddConn(*websocket.Conn) (Environment, error)
 	// DelConn removes passed connection from pool if exists
 	DelConn(*websocket.Conn)
 }
@@ -25,9 +28,9 @@ type RequestVerifier interface {
 // with passed environment data
 type ConnManager interface {
 	// Handle handles connection using passed environment data
-	Handle(*websocket.Conn, interface{}) error
+	Handle(*websocket.Conn, Environment) error
 	// HandleError processes an errors
-	HandleError(http.ResponseWriter, error)
+	HandleError(http.ResponseWriter, *http.Request, error)
 }
 
 // PoolHandler is handler which receives websocket requests and joins
@@ -62,7 +65,7 @@ func (ph *PoolHandler) ServeHTTP(w http.ResponseWriter,
 	// Verify request
 	if ph.verifier != nil {
 		if err = ph.verifier.Verify(r); err != nil {
-			ph.manager.HandleError(w, err)
+			ph.manager.HandleError(w, r, err)
 			return
 		}
 	}
@@ -70,20 +73,20 @@ func (ph *PoolHandler) ServeHTTP(w http.ResponseWriter,
 	// Upgrade connection to websocket
 	var conn *websocket.Conn
 	if conn, err = ph.upgrader.Upgrade(w, r, nil); err != nil {
-		ph.manager.HandleError(w, err)
+		ph.manager.HandleError(w, r, err)
 		return
 	}
 
 	// Create connection to pool and get envitonment data
-	var env interface{}
+	var env Environment
 	if env, err = ph.pool.AddConn(conn); err != nil {
-		ph.manager.HandleError(w, err)
+		ph.manager.HandleError(w, r, err)
 		return
 	}
 
 	// Handle connection
 	if err = ph.manager.Handle(conn, env); err != nil {
-		ph.manager.HandleError(w, err)
+		ph.manager.HandleError(w, r, err)
 	}
 
 	// Delete connection from pool

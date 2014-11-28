@@ -9,13 +9,14 @@ import (
 // Environment is a common data for connections in one pool
 type Environment interface{}
 
-// ConnPool is common interface for a structures which merge websocket
-// connections in a pools with access to common environment data such
-// as context for starting other goroutines or something else
-type ConnPool interface {
-	// AddConn creates connection to pool and returns environment data
+// PoolManager is common interface for a structures which merge
+// websocket connections in a pools with access to common environment
+// data such as context for starting other goroutines or something
+// else
+type PoolManager interface {
+	// AddConn creates connection to a pool and returns environment
 	AddConn(*websocket.Conn) (Environment, error)
-	// DelConn removes passed connection from pool if exists
+	// DelConn removes passed connection from a pool if exists
 	DelConn(*websocket.Conn)
 }
 
@@ -39,13 +40,13 @@ type ConnManager interface {
 type PoolHandler struct {
 	verifier RequestVerifier
 	manager  ConnManager
-	pool     ConnPool
+	pool     PoolManager
 	upgrader *websocket.Upgrader
 }
 
 // NewPoolHandler creates new pool handler with passed connection
 // manager and pool manager for storage and merging connections
-func NewPoolHandler(manager ConnManager, pool ConnPool,
+func NewPoolHandler(manager ConnManager, pool PoolManager,
 	upgrader *websocket.Upgrader) *PoolHandler {
 	return &PoolHandler{nil, manager, pool, upgrader}
 }

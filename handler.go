@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Environment is common data for connections in one pool
+// Environment is a common data for connections in one pool
 type Environment interface{}
 
 // ConnPool is common interface for a structures which merge websocket
@@ -19,7 +19,7 @@ type ConnPool interface {
 	DelConn(*websocket.Conn)
 }
 
-// RequestVerifier verifies request
+// RequestVerifier verifies requests
 type RequestVerifier interface {
 	Verify(*http.Request) error
 }
@@ -44,7 +44,7 @@ type PoolHandler struct {
 }
 
 // NewPoolHandler creates new pool handler with passed connection
-// manager and connection pool for storage and merging connections
+// manager and pool manager for storage and merging connections
 func NewPoolHandler(manager ConnManager, pool ConnPool,
 	upgrader *websocket.Upgrader) *PoolHandler {
 	return &PoolHandler{nil, manager, pool, upgrader}

@@ -15,14 +15,10 @@ type Environment interface{}
 // else
 type PoolManager interface {
 	// AddConn creates connection to a pool and returns environment
+	// data
 	AddConn(*websocket.Conn) (Environment, error)
 	// DelConn removes passed connection from a pool if exists
 	DelConn(*websocket.Conn)
-}
-
-// RequestVerifier verifies requests
-type RequestVerifier interface {
-	Verify(*http.Request) error
 }
 
 // ConnManager contains methods for processing websocket connections
@@ -34,28 +30,27 @@ type ConnManager interface {
 	HandleError(http.ResponseWriter, *http.Request, error)
 }
 
+// RequestVerifier verifies requests
+type RequestVerifier interface {
+	Verify(*http.Request) error
+}
+
 // PoolHandler is handler which receives websocket requests and joins
 // connections in a pools with common data in order with passed pool
 // manager
 type PoolHandler struct {
+	poolMgr  PoolManager
+	connMgr  ConnManager
 	verifier RequestVerifier
-	manager  ConnManager
-	pool     PoolManager
 	upgrader *websocket.Upgrader
 }
 
-// NewPoolHandler creates new pool handler with passed connection
-// manager and pool manager for storage and merging connections
-func NewPoolHandler(manager ConnManager, pool PoolManager,
-	upgrader *websocket.Upgrader) *PoolHandler {
-	return &PoolHandler{nil, manager, pool, upgrader}
-}
-
-// SetupVerifier adds request verifier
-func (ph *PoolHandler) SetupVerifier(verifier RequestVerifier) {
-	if verifier != nil {
-		ph.verifier = verifier
-	}
+// NewPoolHandler creates new PoolHandler with passed pool manager,
+// connection manager, verifier and upgrader
+func NewPoolHandler(poolMgr PoolManager, connMgr ConnManager,
+	verifier RequestVerifier, upgrader *websocket.Upgrader,
+) http.Handler {
+	return &PoolHandler{poolMgr, connMgr, verifier, upgrader}
 }
 
 // Implementing http.Handler interface
@@ -66,30 +61,35 @@ func (ph *PoolHandler) ServeHTTP(w http.ResponseWriter,
 	// Verify request
 	if ph.verifier != nil {
 		if err = ph.verifier.Verify(r); err != nil {
-			ph.manager.HandleError(w, r, err)
+			ph.connMgr.HandleError(w, r, err)
 			return
 		}
 	}
 
 	// Upgrade connection to websocket
 	var conn *websocket.Conn
-	if conn, err = ph.upgrader.Upgrade(w, r, nil); err != nil {
-		ph.manager.HandleError(w, r, err)
+	if ph.upgrader != nil {
+		conn, err = ph.upgrader.Upgrade(w, r, nil)
+	} else {
+		conn, err = (&websocket.Upgrader{}).Upgrade(w, r, nil)
+	}
+	if err != nil {
+		ph.connMgr.HandleError(w, r, err)
 		return
 	}
 
-	// Create connection to pool and get envitonment data
+	// Create connection to a pool and get envitonment data
 	var env Environment
-	if env, err = ph.pool.AddConn(conn); err != nil {
-		ph.manager.HandleError(w, r, err)
+	if env, err = ph.poolMgr.AddConn(conn); err != nil {
+		ph.connMgr.HandleError(w, r, err)
 		return
 	}
 
 	// Handle connection
-	if err = ph.manager.Handle(conn, env); err != nil {
-		ph.manager.HandleError(w, r, err)
+	if err = ph.connMgr.Handle(conn, env); err != nil {
+		ph.connMgr.HandleError(w, r, err)
 	}
 
-	// Delete connection from pool
-	ph.pool.DelConn(conn)
+	// Delete connection from a pool
+	ph.poolMgr.DelConn(conn)
 }

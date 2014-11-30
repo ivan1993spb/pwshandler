@@ -95,6 +95,6 @@ func (ph *PoolHandler) ServeHTTP(w http.ResponseWriter,
 
 	// Close connection
 	if err = conn.Close(); err != nil {
-		ph.connMgr.HandleError(nil, nil, err)
+		ph.connMgr.HandleError(nil, r, err)
 	}
 }

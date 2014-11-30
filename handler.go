@@ -92,4 +92,9 @@ func (ph *PoolHandler) ServeHTTP(w http.ResponseWriter,
 
 	// Delete connection from a pool
 	ph.poolMgr.DelConn(conn)
+
+	// Close connection
+	if err = conn.Close(); err != nil {
+		ph.connMgr.HandleError(nil, nil, err)
+	}
 }

@@ -9,10 +9,9 @@ import (
 // Environment is a common data for connections in one pool
 type Environment interface{}
 
-// PoolManager is common interface for a structures which merge
+// PoolManager is common interface for a structures which combine
 // websocket connections in a pools with access to common environment
-// data such as context for starting other goroutines or something
-// else
+// data
 type PoolManager interface {
 	// AddConn creates connection to a pool and returns environment
 	// data
@@ -35,26 +34,27 @@ type RequestVerifier interface {
 	Verify(*http.Request) error
 }
 
-// PoolHandler is handler which receives websocket requests and joins
-// connections in a pools with common data in order with passed pool
-// manager
-type PoolHandler struct {
+// poolHandler is handler which receives websocket requests and
+// combines connection goroutines in a pools with common data
+type poolHandler struct {
 	poolMgr  PoolManager
 	connMgr  ConnManager
 	verifier RequestVerifier
 	upgrader *websocket.Upgrader
 }
 
-// NewPoolHandler creates new PoolHandler with passed pool manager,
-// connection manager, verifier and upgrader
+// NewPoolHandler creates new http.Handler which receives http
+// requests and then upgrades them to websocket connections and
+// combines handler goroutines in a pools with common environment data
+// in order with passed pool manager
 func NewPoolHandler(poolMgr PoolManager, connMgr ConnManager,
 	verifier RequestVerifier, upgrader *websocket.Upgrader,
 ) http.Handler {
-	return &PoolHandler{poolMgr, connMgr, verifier, upgrader}
+	return &poolHandler{poolMgr, connMgr, verifier, upgrader}
 }
 
 // Implementing http.Handler interface
-func (ph *PoolHandler) ServeHTTP(w http.ResponseWriter,
+func (ph *poolHandler) ServeHTTP(w http.ResponseWriter,
 	r *http.Request) {
 
 	var err error

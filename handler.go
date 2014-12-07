@@ -1,8 +1,6 @@
-/*
-PoolHandler is handler which may be useful at the projects where
-websocket connections are divided into a groups (pools) with a common
-environment data
-*/
+// PoolHandler is handler which may be useful at the projects where
+// websocket connections are divided into a groups (pools) with a
+// common environment data
 package pwshandler
 
 import (

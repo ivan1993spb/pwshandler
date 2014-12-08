@@ -20,7 +20,7 @@ type PoolManager interface {
 	// data
 	AddConn(ws *websocket.Conn) (Environment, error)
 	// DelConn removes passed connection from a pool if exists
-	DelConn(ws *websocket.Conn)
+	DelConn(ws *websocket.Conn) error
 }
 
 // ConnManager contains methods for processing websocket connections
@@ -70,6 +70,8 @@ func PoolHandler(poolMgr PoolManager, connMgr ConnManager,
 		}
 
 		// Delete connection from a pool
-		poolMgr.DelConn(ws)
+		if err = poolMgr.DelConn(ws); err != nil {
+			connMgr.HandleError(ws, err)
+		}
 	})
 }

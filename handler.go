@@ -1,6 +1,8 @@
 // PoolHandler is handler which may be useful at the projects where
 // websocket connections are divided into a groups (pools) with a
 // common environment data
+//
+// Author: Pushkin Ivan <pushkin13@bk.ru>
 package pwshandler
 
 import (
@@ -39,6 +41,15 @@ type RequestVerifier interface {
 	Verify(ws *websocket.Conn) error
 }
 
+type errHandlingConn struct {
+	addr string
+	err  error
+}
+
+func (e *errHandlingConn) Error() string {
+	return e.addr + ": error of connection handling: " + e.err.Error()
+}
+
 // PoolHandler returns handler which receives websocket requests and
 // merges connection goroutines in a pools with common data. poolMgr
 // is a storage of pools and connections, connMgr contains handlers,
@@ -52,7 +63,9 @@ func PoolHandler(poolMgr PoolManager, connMgr ConnManager,
 		// Verify request
 		if verifier != nil {
 			if err = verifier.Verify(ws); err != nil {
-				connMgr.HandleError(ws, err)
+				connMgr.HandleError(ws, &errHandlingConn{
+					ws.Request().RemoteAddr, err,
+				})
 				return
 			}
 		}
@@ -60,18 +73,24 @@ func PoolHandler(poolMgr PoolManager, connMgr ConnManager,
 		// Create connection to a pool and take envitonment data
 		var data Environment
 		if data, err = poolMgr.AddConn(ws); err != nil {
-			connMgr.HandleError(ws, err)
+			connMgr.HandleError(ws, &errHandlingConn{
+				ws.Request().RemoteAddr, err,
+			})
 			return
 		}
 
 		// Handle connection
 		if err = connMgr.Handle(ws, data); err != nil {
-			connMgr.HandleError(ws, err)
+			connMgr.HandleError(ws, &errHandlingConn{
+				ws.Request().RemoteAddr, err,
+			})
 		}
 
 		// Delete connection from a pool
 		if err = poolMgr.DelConn(ws); err != nil {
-			connMgr.HandleError(ws, err)
+			connMgr.HandleError(ws, &errHandlingConn{
+				ws.Request().RemoteAddr, err,
+			})
 		}
 	})
 }

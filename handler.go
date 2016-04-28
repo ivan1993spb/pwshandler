@@ -1,8 +1,6 @@
 // PoolHandler is handler which may be useful at the projects where
 // websocket connections are divided into a groups (pools) with access
 // to common data
-//
-// Author: Pushkin Ivan <iv.pushk@gmail.com>
 package pwshandler
 
 import (
